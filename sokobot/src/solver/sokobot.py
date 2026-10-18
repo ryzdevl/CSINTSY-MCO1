@@ -1,5 +1,9 @@
 import time
 
+try:
+    from .search import solve
+except ImportError:
+    from search import solve
 
 class SokoBot:
     def solveSokobanPuzzle(self, width, height, mapData, itemsData):
@@ -8,7 +12,7 @@ class SokoBot:
         # sequence
         # that just moves left and right repeatedly.
         try:
-            time.sleep(3)
+            return solve(width, height, mapData, itemsData)
         except Exception as ex:
             print(ex)
-        return "lrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlrlr"
+            return ""
