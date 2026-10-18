@@ -2,11 +2,115 @@ import heapq
 import time
 from collections import deque
 from itertools import count
+from functools import lru_cache
 
 try:
     from .game_logic import DIRECTIONS, State, from_arrays
 except ImportError:
     from game_logic import DIRECTIONS, State, from_arrays
+
+@lru_cache(maxsize=64)
+def target_distances(board):
+
+    distances = []
+
+    for target in sorted(board.targets):
+        distance = {target: 0}
+        queue = deque([target])
+
+        while queue:
+            current = queue.popleft()
+
+            for move, (dr, dc) in DIRECTIONS:
+                previous = (current[0] - dr, current[1] - dc)
+                player_pos = (previous[0] - dr, previous[1] - dc)
+
+                if (previous not in distance and board.is_floor(previous) 
+                    and board.is_floor(player_pos)):
+
+                    distance[previous] = distance[current] + 1
+                    queue.append(previous)
+
+        distances.append(distance)
+
+    return tuple(distances)
+
+@lru_cache(maxsize=50000)
+def heuristic(board, crates):
+    if crates == board.targets:
+        return 0
+
+    crates_list = sorted(crates)
+    distances = target_distances(board)
+    n = len(crates_list)
+
+    if n != len(distances):
+        return float('inf')
+
+    dp = {0: 0}
+
+    for crate in crates_list:
+        next_dp = {}
+
+        for mask, cost in dp.items():
+            for i, distance_map in enumerate(distances):
+                bit = 1 << i
+
+                if mask & bit:
+                    continue
+
+                push_distance = distance_map.get(crate)
+
+                if push_distance is None:
+                    continue
+
+                new_mask = mask | bit
+                new_cost = cost + push_distance
+
+                if new_cost < next_dp.get(new_mask, float('inf')):
+                    next_dp[new_mask] = new_cost
+
+        if not next_dp:
+            return float('inf')
+
+        dp = next_dp
+
+    return dp.get((1 << n) - 1, float('inf'))
+
+@lru_cache(maxsize=50000)
+def is_deadlock(board, crates):
+
+    if crates == board.targets:
+        return False
+
+    distances = target_distances(board)
+    reachable_squares = set()
+
+    for distance_map in distances:
+        reachable_squares.update(distance_map.keys())
+
+    for crate in crates:
+        if crate not in board.targets and crate not in reachable_squares:
+            return True
+
+    blocked = board.walls | crates
+
+    for r, c in crates:
+        if(r, c) in board.targets:
+            continue
+
+        for dr in (-1, 0):
+            for dc in (-1, 0):
+                square = {(r + dr, c + dc), (r + dr + 1, c + dc), 
+                          (r + dr, c + dc + 1), (r + dr + 1, c + dc + 1)}
+
+                if square.issubset(blocked):
+                    return True
+
+    if heuristic(board, crates) == float('inf'):
+        return True
+
+    return False
 
 def reachable(board, player, crates):
     parent = {player: None}
