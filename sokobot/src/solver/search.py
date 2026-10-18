@@ -9,9 +9,9 @@ except ImportError:
     from game_logic import DIRECTIONS, State, from_arrays
 
 try:
-    from .heuristic import heuristic, is_deadlock
+    from .heuristics import heuristic, is_deadlock
 except ImportError:
-    from heuristic import heuristic, is_deadlock
+    from heuristics import heuristic, is_deadlock
 
 
 def reachable(board, player, crates):
