@@ -9,7 +9,6 @@ except ImportError:
 
 @lru_cache(maxsize=64)
 def _target_distances(board):
-
     distances = []
     for target in sorted(board.targets):
         distance = {target: 0}
@@ -30,7 +29,13 @@ def _target_distances(board):
     return tuple(distances)
 
 
-@lru_cache(maxsize=50000)
+@lru_cache(maxsize=64)
+def _reachable_squares(board):
+    distances = _target_distances(board)
+    return frozenset().union(*(d.keys() for d in distances))
+
+
+@lru_cache(maxsize=100000)
 def heuristic(board, crates):
     if crates == board.targets:
         return 0
@@ -48,10 +53,10 @@ def heuristic(board, crates):
             for target_index, distances in enumerate(distance_maps):
                 bit = 1 << target_index
                 if mask & bit:
-                    continue 
+                    continue
                 push_distance = distances.get(crate)
                 if push_distance is None:
-                    continue 
+                    continue
                 new_mask = mask | bit
                 new_cost = cost + push_distance
                 if new_cost < next_dp.get(new_mask, float('inf')):
@@ -62,14 +67,12 @@ def heuristic(board, crates):
     return dp.get((1 << n) - 1, float('inf'))
 
 
-@lru_cache(maxsize=50000)
+@lru_cache(maxsize=100000)
 def is_deadlock(board, crates):
-
     if crates == board.targets:
         return False
 
-    distances = _target_distances(board)
-    can_reach_a_target = set().union(*(set(d) for d in distances))
+    can_reach_a_target = _reachable_squares(board)
     if any(crate not in board.targets and crate not in can_reach_a_target
            for crate in crates):
         return True

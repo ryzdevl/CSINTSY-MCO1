@@ -49,17 +49,15 @@ def push_successors(board, crates, parent):
             yield new_state.player, new_state.crates, walk_path(parent, stand) + move
 
 
-def astar(board, start, time_limit=14.0, weight=1.0):
+def astar(board, start, time_limit=14.0, weight=1.0, count_pushes=False):
     deadline = time.time() + time_limit
     tie = count()
 
     if board.is_solved(start):
         return ''
 
-    # nodes[i] = (parent_index, move_string); used only to rebuild the answer
     nodes = [(-1, '')]
     h0 = heuristic(board, start.crates)
-    # heap item: (f, h, tie, g, node_index, player, crates)
     open_heap = [(weight * h0, h0, next(tie), 0, 0, start.player, start.crates)]
     closed = set()
 
@@ -85,7 +83,8 @@ def astar(board, start, time_limit=14.0, weight=1.0):
             if is_deadlock(board, new_crates):
                 continue
             nodes.append((idx, moves))
-            new_g = g + len(moves)           # cost = total moves (walk + push)
+            step_cost = 1 if count_pushes else len(moves)
+            new_g = g + step_cost
             new_h = heuristic(board, new_crates)
             heapq.heappush(open_heap, (new_g + weight * new_h, new_h, next(tie),
                                        new_g, len(nodes) - 1, new_player, new_crates))
@@ -94,5 +93,8 @@ def astar(board, start, time_limit=14.0, weight=1.0):
 
 def solve(width, height, mapData, itemsData):
     board, start = from_arrays(width, height, mapData, itemsData)
-    result = astar(board, start)
+    result = astar(board, start, time_limit=8.0, weight=2.0, count_pushes=True)
+    if result is not None:
+        return result
+    result = astar(board, start, time_limit=6.0, weight=3.0, count_pushes=False)
     return result if result is not None else ''
